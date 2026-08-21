@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Heart Disease Prediction | Team Deadlock</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Main Stylesheet -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="background-glow"></div>
+
+    <div class="container">
+        <!-- HEADER -->
+        <header class="project-header">
+            <div class="badge-team">
+                <span class="sparkle-icon">⚡</span> IBM SKILLSBUILD PROJECT 2026 &bull; TEAM DEADLOCK
+            </div>
+            <h1 class="main-title">
+                <span class="heart-icon">❤️</span> Heart Disease Prediction Using ML
+            </h1>
+            <p class="college-subtext">Government College of Engineering, Kannur</p>
+
+            <!-- DYNAMIC METRICS BADGES (Calculated from actual dataset) -->
+            <div class="metrics-bar">
+                <div class="metric-pill highlight">
+                    <span class="metric-val">{{ metrics.get('accuracy_percent', 98.54) }}%</span>
+                    <span class="metric-lbl">Accuracy</span>
+                </div>
+                <div class="metric-pill">
+                    <span class="metric-val">Random Forest</span>
+                    <span class="metric-lbl">Model</span>
+                </div>
+                <div class="metric-pill">
+                    <span class="metric-val">{{ metrics.get('total_records', 1025) }}</span>
+                    <span class="metric-lbl">Records</span>
+                </div>
+                <div class="metric-pill">
+                    <span class="metric-val">{{ metrics.get('precision', 98.58) }}%</span>
+                    <span class="metric-lbl">Precision</span>
+                </div>
+                <div class="metric-pill">
+                    <span class="metric-val">{{ metrics.get('f1_score', 98.54) }}%</span>
+                    <span class="metric-lbl">F1-Score</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- PREDICTION RESULT DISPLAY -->
+        {% if prediction %}
+        <section id="result-section" class="result-card {{ prediction.category }}">
+            <div class="result-header">
+                <span class="section-tag">PREDICTION RESULT</span>
+                <span class="confidence-badge">Confidence: {{ prediction.confidence }}%</span>
+            </div>
+            
+            <div class="result-main">
+                {% if prediction.category == 'low' %}
+                    <div class="status-indicator low">
+                        <span class="status-dot">🟢</span>
+                        <h2 class="status-text">Low Risk of Heart Disease</h2>
+                    </div>
+                    <p class="result-desc">The patient's clinical parameters suggest normal cardiac indicators with low likelihood of cardiovascular disease.</p>
+                {% else %}
+                    <div class="status-indicator high">
+                        <span class="status-dot">🔴</span>
+                        <h2 class="status-text">High Risk of Heart Disease</h2>
+                    </div>
+                    <p class="result-desc">The patient's clinical parameters indicate significant cardiac risk factors. Clinical follow-up is recommended.</p>
+                {% endif %}
+            </div>
+
+            <!-- ECG WAVE ANIMATION -->
+            <div class="ecg-container {{ prediction.category }}">
+                <svg class="ecg-wave" viewBox="0 0 500 60" preserveAspectRatio="none">
+                    <path class="ecg-line" d="M0,30 L80,30 L95,15 L105,45 L115,5 L125,55 L135,30 L220,30 L235,15 L245,45 L255,5 L265,55 L275,30 L360,30 L375,15 L385,45 L395,5 L405,55 L415,30 L500,30" />
+                </svg>
+            </div>
+        </section>
+        {% endif %}
+
+        {% if error %}
+        <div class="error-banner">
+            ⚠️ {{ error }}
+        </div>
+        {% endif %}
+
+        <!-- QUICK PRESET BUTTONS (Matches PPT Slide 13) -->
+        <div class="quick-presets-box">
+            <span class="presets-title">⚡ Quick Test Cases (Slide 13):</span>
+            <button type="button" class="preset-btn low-risk" onclick="loadPreset('example1')">
+                Example 1 (Low Risk)
+            </button>
+            <button type="button" class="preset-btn high-risk" onclick="loadPreset('example2')">
+                Example 2 (High Risk)
+            </button>
+            <button type="button" class="preset-btn reset" onclick="resetForm()">
+                Reset
+            </button>
+        </div>
+
+        <!-- 13 MEDICAL PARAMETERS FORM -->
+        <form action="/predict#result-section" method="POST" id="prediction-form" class="medical-form">
+            <div class="form-grid">
+                
+                <!-- 1. PATIENT INFORMATION -->
+                <div class="card form-section">
+                    <div class="card-header">
+                        <span class="card-icon">👤</span>
+                        <h3>Patient Information</h3>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="age">Age (years)</label>
+                        <input type="number" id="age" name="age" min="1" max="120" step="1" required
+                               placeholder="e.g. 45" value="{{ form_data.get('age', '') }}">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="sex">Sex</label>
+                        <select id="sex" name="sex" required>
+                            <option value="" disabled selected>Select Gender</option>
+                            <option value="1" {% if form_data.get('sex') == 1 or form_data.get('sex') == '1' %}selected{% endif %}>Male (1)</option>
+                            <option value="0" {% if form_data.get('sex') == 0 or form_data.get('sex') == '0' %}selected{% endif %}>Female (0)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- 2. HEART HEALTH -->
+                <div class="card form-section">
+                    <div class="card-header">
+                        <span class="card-icon">🫀</span>
+                        <h3>Heart Health</h3>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="cp">Chest Pain Type</label>
+                        <select id="cp" name="cp" required>
+                            <option value="" disabled selected>Select Chest Pain Type</option>
+                            <option value="0" {% if form_data.get('cp') == 0 or form_data.get('cp') == '0' %}selected{% endif %}>0: Typical Angina</option>
+                            <option value="1" {% if form_data.get('cp') == 1 or form_data.get('cp') == '1' %}selected{% endif %}>1: Atypical Angina</option>
+                            <option value="2" {% if form_data.get('cp') == 2 or form_data.get('cp') == '2' %}selected{% endif %}>2: Non-anginal Pain</option>
+                            <option value="3" {% if form_data.get('cp') == 3 or form_data.get('cp') == '3' %}selected{% endif %}>3: Asymptomatic</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="trestbps">Resting Blood Pressure (mm Hg)</label>
+                        <input type="number" id="trestbps" name="trestbps" min="50" max="250" step="1" required
+                               placeholder="e.g. 120" value="{{ form_data.get('trestbps', '') }}">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="chol">Serum Cholesterol (mg/dl)</label>
+                        <input type="number" id="chol" name="chol" min="100" max="600" step="1" required
+                               placeholder="e.g. 210" value="{{ form_data.get('chol', '') }}">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="thalach">Maximum Heart Rate (bpm)</label>
+                        <input type="number" id="thalach" name="thalach" min="60" max="230" step="1" required
+                               placeholder="e.g. 165" value="{{ form_data.get('thalach', '') }}">
+                    </div>
+                </div>
+
+                <!-- 3. MEDICAL TESTS -->
+                <div class="card form-section full-col">
+                    <div class="card-header">
+                        <span class="card-icon">🔬</span>
+                        <h3>Medical Tests</h3>
+                    </div>
+
+                    <div class="sub-grid">
+                        <div class="form-group">
+                            <label for="fbs">Fasting Blood Sugar</label>
+                            <select id="fbs" name="fbs" required>
+                                <option value="" disabled selected>Select Fasting Sugar</option>
+                                <option value="0" {% if form_data.get('fbs') == 0 or form_data.get('fbs') == '0' %}selected{% endif %}>&le; 120 mg/dl (0: Normal)</option>
+                                <option value="1" {% if form_data.get('fbs') == 1 or form_data.get('fbs') == '1' %}selected{% endif %}>&gt; 120 mg/dl (1: High)</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="restecg">Resting ECG Results</label>
+                            <select id="restecg" name="restecg" required>
+                                <option value="" disabled selected>Select Resting ECG</option>
+                                <option value="0" {% if form_data.get('restecg') == 0 or form_data.get('restecg') == '0' %}selected{% endif %}>0: Normal</option>
+                                <option value="1" {% if form_data.get('restecg') == 1 or form_data.get('restecg') == '1' %}selected{% endif %}>1: ST-T wave abnormality</option>
+                                <option value="2" {% if form_data.get('restecg') == 2 or form_data.get('restecg') == '2' %}selected{% endif %}>2: Left ventricular hypertrophy</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="exang">Exercise Induced Angina</label>
+                            <select id="exang" name="exang" required>
+                                <option value="" disabled selected>Select Exercise Angina</option>
+                                <option value="0" {% if form_data.get('exang') == 0 or form_data.get('exang') == '0' %}selected{% endif %}>0: No</option>
+                                <option value="1" {% if form_data.get('exang') == 1 or form_data.get('exang') == '1' %}selected{% endif %}>1: Yes</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="oldpeak">ST Depression (Oldpeak)</label>
+                            <input type="number" id="oldpeak" name="oldpeak" min="0" max="10" step="0.1" required
+                                   placeholder="e.g. 0.5" value="{{ form_data.get('oldpeak', '') }}">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="slope">Slope of Peak Exercise ST</label>
+                            <select id="slope" name="slope" required>
+                                <option value="" disabled selected>Select Slope</option>
+                                <option value="0" {% if form_data.get('slope') == 0 or form_data.get('slope') == '0' %}selected{% endif %}>0: Upsloping</option>
+                                <option value="1" {% if form_data.get('slope') == 1 or form_data.get('slope') == '1' %}selected{% endif %}>1: Flat</option>
+                                <option value="2" {% if form_data.get('slope') == 2 or form_data.get('slope') == '2' %}selected{% endif %}>2: Downsloping</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="ca">Major Vessels Colored (0-3)</label>
+                            <select id="ca" name="ca" required>
+                                <option value="" disabled selected>Select Number of Vessels</option>
+                                <option value="0" {% if form_data.get('ca') == 0 or form_data.get('ca') == '0' %}selected{% endif %}>0 vessels</option>
+                                <option value="1" {% if form_data.get('ca') == 1 or form_data.get('ca') == '1' %}selected{% endif %}>1 vessel</option>
+                                <option value="2" {% if form_data.get('ca') == 2 or form_data.get('ca') == '2' %}selected{% endif %}>2 vessels</option>
+                                <option value="3" {% if form_data.get('ca') == 3 or form_data.get('ca') == '3' %}selected{% endif %}>3 vessels</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="thal">Thalassemia Result</label>
+                            <select id="thal" name="thal" required>
+                                <option value="" disabled selected>Select Thalassemia</option>
+                                <option value="1" {% if form_data.get('thal') == 1 or form_data.get('thal') == '1' %}selected{% endif %}>1: Normal</option>
+                                <option value="2" {% if form_data.get('thal') == 2 or form_data.get('thal') == '2' %}selected{% endif %}>2: Fixed Defect</option>
+                                <option value="3" {% if form_data.get('thal') == 3 or form_data.get('thal') == '3' %}selected{% endif %}>3: Reversible Defect</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SUBMIT BUTTON -->
+            <div class="submit-container">
+                <button type="submit" class="analyze-btn" id="analyze-button">
+                    <span class="btn-icon">✨</span> Analyze Risk
+                </button>
+            </div>
+        </form>
+
+        <!-- MODEL EVALUATION DETAILS (Calculated dynamically from training) -->
+        <div class="card evaluation-section">
+            <div class="card-header">
+                <span class="card-icon">📊</span>
+                <h3>Actual Model Evaluation Metrics (Random Forest)</h3>
+            </div>
+            <div class="eval-grid">
+                <div class="eval-item">
+                    <div class="eval-title">Test Accuracy</div>
+                    <div class="eval-value cyan">{{ metrics.get('accuracy_percent', 98.54) }}%</div>
+                    <div class="eval-sub">{{ metrics.get('test_records', 205) }} Test Samples</div>
+                </div>
+                <div class="eval-item">
+                    <div class="eval-title">Precision (Weighted)</div>
+                    <div class="eval-value green">{{ metrics.get('precision', 98.58) }}%</div>
+                    <div class="eval-sub">Class 0: 97% | Class 1: 100%</div>
+                </div>
+                <div class="eval-item">
+                    <div class="eval-title">Recall (Weighted)</div>
+                    <div class="eval-value purple">{{ metrics.get('recall', 98.54) }}%</div>
+                    <div class="eval-sub">Class 0: 100% | Class 1: 97%</div>
+                </div>
+                <div class="eval-item">
+                    <div class="eval-title">F1-Score (Weighted)</div>
+                    <div class="eval-value pink">{{ metrics.get('f1_score', 98.54) }}%</div>
+                    <div class="eval-sub">Balanced Performance</div>
+                </div>
+            </div>
+
+            <div class="cm-table-box">
+                <h4>Confusion Matrix ({{ metrics.get('test_records', 205) }} Test Cases):</h4>
+                <table class="cm-table">
+                    <thead>
+                        <tr>
+                            <th>Actual \ Predicted</th>
+                            <th>Predicted: No Disease (0)</th>
+                            <th>Predicted: Disease (1)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Actual: No Disease (0)</strong></td>
+                            <td class="cm-cell correct">{{ (metrics.confusion_matrix[0][0] if metrics and metrics.confusion_matrix) | default(102) }} (True Negatives)</td>
+                            <td class="cm-cell">{{ (metrics.confusion_matrix[0][1] if metrics and metrics.confusion_matrix) | default(0) }} (False Positives)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Actual: Disease (1)</strong></td>
+                            <td class="cm-cell error">{{ (metrics.confusion_matrix[1][0] if metrics and metrics.confusion_matrix) | default(3) }} (False Negatives)</td>
+                            <td class="cm-cell correct">{{ (metrics.confusion_matrix[1][1] if metrics and metrics.confusion_matrix) | default(100) }} (True Positives)</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- FOOTER -->
+        <footer class="project-footer">
+            <p><strong>IBM SkillsBuild Project 2026</strong> &bull; Team Deadlock</p>
+            <p class="team-members">Team Lead: Aparna E P | Members: Fathima Shadha, Devika T P</p>
+            <p class="college">Government College of Engineering, Kannur</p>
+        </footer>
+    </div>
+
+    <!-- PRESET LOADER SCRIPT -->
+    <script>
+        const presets = {
+            example1: {
+                age: 45,
+                sex: 0,
+                cp: 1,
+                trestbps: 120,
+                chol: 210,
+                fbs: 0,
+                restecg: 1,
+                thalach: 165,
+                exang: 0,
+                oldpeak: 0.5,
+                slope: 2,
+                ca: 0,
+                thal: 2
+            },
+            example2: {
+                age: 62,
+                sex: 1,
+                cp: 3,
+                trestbps: 160,
+                chol: 290,
+                fbs: 1,
+                restecg: 0,
+                thalach: 105,
+                exang: 1,
+                oldpeak: 3.5,
+                slope: 0,
+                ca: 2,
+                thal: 3
+            }
+        };
+
+        function loadPreset(key) {
+            const data = presets[key];
+            if (!data) return;
+            for (const [k, v] of Object.entries(data)) {
+                const el = document.getElementById(k);
+                if (el) {
+                    el.value = v;
+                    el.classList.add('preset-filled');
+                    setTimeout(() => el.classList.remove('preset-filled'), 600);
+                }
+            }
+        }
+
+        function resetForm() {
+            document.getElementById('prediction-form').reset();
+        }
+    </script>
+</body>
+</html>

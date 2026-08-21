@@ -5,17 +5,24 @@ import pickle
 import traceback
 import numpy as np
 import pandas as pd
-from flask import Flask, render_template, request
+from flask import Flask, render_template, render_template_string, request, send_from_directory
+from jinja2 import ChoiceLoader, FileSystemLoader
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATH = os.path.join(BASE_DIR, 'heart_model.pkl')
 METRICS_PATH = os.path.join(BASE_DIR, 'metrics.json')
 
-app = Flask(
-    __name__,
-    template_folder=os.path.join(BASE_DIR, 'templates'),
-    static_folder=os.path.join(BASE_DIR, 'static')
-)
+app = Flask(__name__)
+
+# Bulletproof Jinja2 template loader searching all common directory layouts
+app.jinja_loader = ChoiceLoader([
+    FileSystemLoader(os.path.join(BASE_DIR, 'templates')),
+    FileSystemLoader(os.path.join(BASE_DIR, 'Templates')),
+    FileSystemLoader(BASE_DIR),
+    FileSystemLoader(os.path.join(os.getcwd(), 'templates')),
+    FileSystemLoader(os.path.join(os.getcwd(), 'Templates')),
+    FileSystemLoader(os.getcwd())
+])
 
 DEFAULT_METRICS = {
     "accuracy_raw": 0.9853658536585366,
@@ -75,16 +82,57 @@ FEATURE_NAMES = [
     'restecg', 'thalach', 'exang', 'oldpeak', 'slope', 'ca', 'thal'
 ]
 
-@app.route('/', methods=['GET'])
+# Helper to find index.html content even if templates directory is missing
+def get_index_template():
+    possible_paths = [
+        os.path.join(BASE_DIR, 'templates', 'index.html'),
+        os.path.join(BASE_DIR, 'Templates', 'index.html'),
+        os.path.join(BASE_DIR, 'index.html'),
+        os.path.join(os.getcwd(), 'templates', 'index.html'),
+        os.path.join(os.getcwd(), 'index.html')
+    ]
+    for p in possible_paths:
+        if os.path.exists(p):
+            with open(p, 'r', encoding='utf-8') as f:
+                return f.read()
+    return None
+
+def safe_render(template_name, **context):
+    try:
+        return render_template(template_name, **context)
+    except Exception as e:
+        print(f"[Notice] render_template failed ({e}), falling back to direct template content...")
+        content = get_index_template()
+        if content:
+            return render_template_string(content, **context)
+        raise e
+
+# Static file serving fallback (for cases where static folder is in root or static/)
+@app.route('/static/<path:filename>')
+def custom_static(filename):
+    possible_folders = [
+        os.path.join(BASE_DIR, 'static'),
+        os.path.join(BASE_DIR, 'Static'),
+        BASE_DIR,
+        os.path.join(os.getcwd(), 'static'),
+        os.getcwd()
+    ]
+    for folder in possible_folders:
+        file_path = os.path.join(folder, filename)
+        if os.path.exists(file_path):
+            return send_from_directory(folder, filename)
+    return "", 404
+
+@app.route('/', methods=['GET', 'HEAD'])
 def home():
     try:
         if model is None:
             load_resources()
-        return render_template('index.html', metrics=metrics, prediction=None, form_data={})
+        return safe_render('index.html', metrics=metrics, prediction=None, form_data={})
     except Exception as e:
         print(f"Error on GET /: {e}")
         traceback.print_exc()
-        return render_template('index.html', metrics=DEFAULT_METRICS, prediction=None, form_data={}, error=str(e))
+        return safe_render('index.html', metrics=DEFAULT_METRICS, prediction=None, form_data={}, error=str(e))
 
 @app.route('/predict', methods=['POST'])
 def predict():
@@ -143,7 +191,7 @@ def predict():
             "raw_pred": int(pred)
         }
 
-        return render_template(
+        return safe_render(
             'index.html',
             metrics=metrics,
             prediction=prediction_result,
@@ -154,7 +202,7 @@ def predict():
         error_msg = f"Error during prediction: {str(e)}"
         print(error_msg)
         traceback.print_exc()
-        return render_template(
+        return safe_render(
             'index.html',
             metrics=metrics,
             error=error_msg,
@@ -165,11 +213,11 @@ def predict():
 def internal_error(error):
     print("500 Internal Server Error encountered:")
     traceback.print_exc()
-    return render_template('index.html', metrics=DEFAULT_METRICS, prediction=None, form_data={}, error="An internal server error occurred. The application has safely recovered."), 500
+    return safe_render('index.html', metrics=DEFAULT_METRICS, prediction=None, form_data={}, error="An internal server error occurred. The application has safely recovered."), 500
 
 @app.errorhandler(404)
 def not_found_error(error):
-    return render_template('index.html', metrics=DEFAULT_METRICS, prediction=None, form_data={}), 404
+    return safe_render('index.html', metrics=DEFAULT_METRICS, prediction=None, form_data={}), 404
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
