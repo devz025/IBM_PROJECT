@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 import numpy as np
 import pickle
@@ -6,14 +7,22 @@ from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, confusion_matrix, classification_report, precision_score, recall_score, f1_score
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATASET_PATH = os.path.join(BASE_DIR, 'heart.csv')
+MODEL_PATH = os.path.join(BASE_DIR, 'heart_model.pkl')
+METRICS_PATH = os.path.join(BASE_DIR, 'metrics.json')
+
 def train_and_evaluate_model():
     print("=" * 60)
     print("Heart Disease Prediction Model Training (Team Deadlock)")
     print("=" * 60)
 
     # 1. Load Dataset
-    print("\n[1] Loading UCI Heart Disease Dataset (heart.csv)...")
-    df = pd.read_csv('heart.csv')
+    print(f"\n[1] Loading UCI Heart Disease Dataset ({DATASET_PATH})...")
+    if not os.path.exists(DATASET_PATH):
+        raise FileNotFoundError(f"Dataset not found at {DATASET_PATH}")
+        
+    df = pd.read_csv(DATASET_PATH)
     print(f"Dataset shape: {df.shape[0]} rows, {df.shape[1]} columns")
 
     # 2. Features and Target
@@ -48,10 +57,9 @@ def train_and_evaluate_model():
     print(cr)
 
     # 6. Save Trained Model
-    model_filename = 'heart_model.pkl'
-    with open(model_filename, 'wb') as f:
+    with open(MODEL_PATH, 'wb') as f:
         pickle.dump(model, f)
-    print(f"Model saved as {model_filename}")
+    print(f"Model saved as {MODEL_PATH}")
 
     # 7. Save Actual Calculated Metrics for Web UI Display
     metrics_data = {
@@ -66,9 +74,9 @@ def train_and_evaluate_model():
         "confusion_matrix": cm.tolist()
     }
 
-    with open('metrics.json', 'w') as f:
+    with open(METRICS_PATH, 'w') as f:
         json.dump(metrics_data, f, indent=4)
-    print("Calculated metrics saved to metrics.json")
+    print(f"Calculated metrics saved to {METRICS_PATH}")
     print("=" * 60)
 
 if __name__ == '__main__':
