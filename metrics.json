@@ -1,0 +1,20 @@
+{
+    "accuracy_raw": 0.9853658536585366,
+    "accuracy_percent": 98.54,
+    "precision": 98.58,
+    "recall": 98.54,
+    "f1_score": 98.54,
+    "total_records": 1025,
+    "train_records": 820,
+    "test_records": 205,
+    "confusion_matrix": [
+        [
+            102,
+            0
+        ],
+        [
+            3,
+            100
+        ]
+    ]
+}
